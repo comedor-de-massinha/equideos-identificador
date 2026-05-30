@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <title>Identificador de Equinos</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+
+  <!--
+    Biblioteca oficial do Teachable Machine.
+    Ela cria globalmente:
+      window.tmImage
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+</head>
+
+<body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center p-6">
+
+  <div class="w-full max-w-3xl bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+
+    <div class="flex justify-end mb-6">
+      <a
+        href="https://github.com/comedor-de-massinha/equideos-identificador"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-800 text-white border border-zinc-700 hover:bg-zinc-700 transition"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5 fill-current">
+          <path d="M12 0C5.371 0 0 5.372 0 12c0 5.303 3.438 9.8 8.205 11.387.6.113.82-.26.82-.577 0-.285-.011-1.04-.017-2.041-3.338.726-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.757-1.333-1.757-1.089-.745.083-.73.083-.73 1.205.085 1.84 1.237 1.84 1.237 1.07 1.835 2.809 1.305 3.494.998.108-.776.418-1.305.76-1.605-2.665-.304-5.466-1.332-5.466-5.93 0-1.31.469-2.381 1.236-3.221-.124-.303-.536-1.523.117-3.176 0 0 1.008-.323 3.301 1.23a11.521 11.521 0 013.003-.404c1.018.005 2.045.138 3.003.404 2.291-1.553 3.297-1.23 3.297-1.23.655 1.653.243 2.873.119 3.176.77.84 1.235 1.911 1.235 3.221 0 4.61-2.805 5.625-5.479 5.921.43.371.815 1.102.815 2.222 0 1.604-.015 2.896-.015 3.289 0 .32.217.694.825.576C20.565 21.796 24 17.298 24 12c0-6.628-5.371-12-12-12z"/>
+        </svg>
+        GitHub
+      </a>
+    </div>
+
+    <div class="text-center mb-8">
+      <h1 class="text-5xl font-black mb-4">
+        🐎 Identificador de Equinos
+      </h1>
+
+      <p class="text-zinc-400">
+        Cavalo, Burro ou Zebra
+      </p>
+    </div>
+
+    <!-- Upload -->
+    <label
+      for="imageUpload"
+      class="flex flex-col items-center justify-center border-2 border-dashed border-zinc-700 hover:border-yellow-400 rounded-3xl p-10 cursor-pointer transition"
+    >
+      <span class="text-6xl mb-4">📷</span>
+
+      <span class="text-xl font-bold">
+        Enviar imagem
+      </span>
+
+      <input
+        type="file"
+        id="imageUpload"
+        accept="image/*"
+        class="hidden"
+      />
+    </label>
+
+    <!-- Preview -->
+    <div class="mt-8 flex justify-center">
+      <img
+        id="preview"
+        class="hidden rounded-3xl border border-zinc-700 max-h-[400px]"
+      />
+    </div>
+
+    <!-- Loading -->
+    <div
+      id="loading"
+      class="hidden mt-6 text-center text-yellow-400 font-bold animate-pulse"
+    >
+      Analisando imagem...
+    </div>
+
+    <!-- Resultado -->
+    <div
+      id="resultContainer"
+      class="hidden mt-8 bg-zinc-800 rounded-3xl p-6 border border-zinc-700"
+    >
+
+      <div class="text-center mb-8">
+
+        <p class="text-zinc-400 mb-2">
+          Resultado
+        </p>
+
+        <h2
+          id="animalName"
+          class="text-5xl font-black text-yellow-400"
+        ></h2>
+
+        <p
+          id="confidence"
+          class="mt-3 text-zinc-300"
+        ></p>
+      </div>
+
+      <!-- Probabilidades -->
+      <div
+        id="predictions"
+        class="space-y-4"
+      ></div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // =====================================================
+    // REFERÊNCIA EXPLÍCITA DA BIBLIOTECA
+    // =====================================================
+
+    /*
+      O script:
+      @teachablemachine/image
+
+      criou:
+      window.tmImage
+
+      Aqui pegamos explicitamente a referência
+      ao invés de usar "tmImage" magicamente.
+    */
+    const teachableMachineImage = window.tmImage;
+
+    // =====================================================
+    // CONFIG
+    // =====================================================
+
+    const MODEL_URL =
+      "https://teachablemachine.withgoogle.com/models/gsrM2CtFD/";
+
+    let model;
+
+    // =====================================================
+    // ELEMENTOS
+    // =====================================================
+
+    const imageUpload =
+      document.getElementById("imageUpload");
+
+    const preview =
+      document.getElementById("preview");
+
+    const loading =
+      document.getElementById("loading");
+
+    const resultContainer =
+      document.getElementById("resultContainer");
+
+    const animalName =
+      document.getElementById("animalName");
+
+    const confidence =
+      document.getElementById("confidence");
+
+    const predictionsDiv =
+      document.getElementById("predictions");
+
+    // =====================================================
+    // LOAD MODEL
+    // =====================================================
+
+    async function loadModel() {
+
+      const modelURL =
+        MODEL_URL + "model.json";
+
+      const metadataURL =
+        MODEL_URL + "metadata.json";
+
+      /*
+        teachableMachineImage
+        veio de:
+
+        window.tmImage
+
+        criado pela biblioteca:
+        @teachablemachine/image
+      */
+      model =
+        await teachableMachineImage.load(
+          modelURL,
+          metadataURL
+        );
+
+      console.log("Modelo carregado!");
+    }
+
+    loadModel();
+
+    // =====================================================
+    // UPLOAD
+    // =====================================================
+
+    imageUpload.addEventListener(
+      "change",
+      async (event) => {
+
+        const file =
+          event.target.files[0];
+
+        if (!file) return;
+
+        // URL nativa do navegador
+        const imageURL =
+          window.URL.createObjectURL(file);
+
+        preview.src = imageURL;
+
+        preview.classList.remove("hidden");
+
+        loading.classList.remove("hidden");
+
+        resultContainer.classList.add("hidden");
+
+        await new Promise((resolve) => {
+          preview.onload = resolve;
+        });
+
+        await predict();
+
+        loading.classList.add("hidden");
+
+        resultContainer.classList.remove("hidden");
+      }
+    );
+
+    // =====================================================
+    // PREDICT
+    // =====================================================
+
+    async function predict() {
+
+      const predictions =
+        await model.predict(preview);
+
+      predictions.sort((a, b) => {
+        return b.probability - a.probability;
+      });
+
+      const bestPrediction =
+        predictions[0];
+
+      animalName.innerText =
+        bestPrediction.className;
+
+      confidence.innerText =
+        "Confiança: " +
+        (bestPrediction.probability * 100)
+          .toFixed(2)
+        + "%";
+
+      predictionsDiv.innerHTML = "";
+
+      predictions.forEach((item) => {
+
+        const percentage =
+          (item.probability * 100)
+            .toFixed(2);
+
+        const row =
+          document.createElement("div");
+
+        row.innerHTML = `
+          <div class="flex justify-between mb-2">
+            <span class="font-bold">
+              ${item.className}
+            </span>
+
+            <span>
+              ${percentage}%
+            </span>
+          </div>
+
+          <div
+            class="w-full bg-zinc-700 rounded-full h-5 overflow-hidden"
+          >
+            <div
+              class="bg-yellow-400 h-5 rounded-full transition-all duration-500"
+              style="width: ${percentage}%"
+            ></div>
+          </div>
+        `;
+
+        predictionsDiv.appendChild(row);
+      });
+    }
+  </script>
+
+</body>
+</html>
