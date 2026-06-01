@@ -19,9 +19,3 @@ Aplicação de classificação de imagem que identifica se um animal é um caval
 - Tailwind CSS
 - TensorFlow.js
 - Teachable Machine
-
-## Link do projeto
-
-Acesse o repositório no GitHub:
-
-https://github.com/comedor-de-massinha/equideos-identificador
